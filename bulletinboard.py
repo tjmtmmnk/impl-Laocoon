@@ -20,9 +20,6 @@ class BulletinBoard:
     def append(self, value):
         self.board.append(value)
 
-    def appendList(self, list):
-        self.board = self.board + list
-
     def show(self):
         for content in self.board:
             print(content)
