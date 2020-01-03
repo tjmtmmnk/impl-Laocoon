@@ -1,8 +1,9 @@
 from typing import Dict, List, Tuple
 
+from umbral.config import set_default_curve
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.kfrags import KFrag
-from umbral.pre import generate_kfrags, encrypt
+from umbral.pre import Capsule, encrypt, generate_kfrags
 from umbral.signing import Signer
 
 from bulletinboard import BulletinBoard
@@ -13,7 +14,7 @@ NUM_OF_CANDIDATE = 3
 
 class Administrator:
     def __init__(self):
-        config.set_default_curve()
+        set_default_curve()
         self.bb = BulletinBoard.get_instance()
         self.private_key = UmbralPrivateKey.gen_key()
         self.public_key = self.private_key.get_pubkey()
@@ -43,15 +44,15 @@ class Administrator:
     def _generate_credential(self,
                              voter_short_public_key: UmbralPublicKey
                              ) -> Tuple[UmbralPublicKey, Signer]:
-        signature = self.signer(voter_short_public_key.to_bytes)
+        signature = self.signer(voter_short_public_key.to_bytes())
         return (voter_short_public_key, signature)
 
     def _encrypt_credential_and_voter_short_private_key(self,
                                                         credential: Tuple[UmbralPublicKey, Signer],
                                                         private_key: UmbralPrivateKey
                                                         ) -> Tuple[bytes, Capsule]:
-        credential_bytes = credential[0].to_bytes + bytes(credential[1])
-        private_key_bytes = private_key.to_bytes
+        credential_bytes = credential[0].to_bytes() + bytes(credential[1])
+        private_key_bytes = private_key.to_bytes()
         return encrypt(self.public_key, credential_bytes + private_key_bytes)
 
     def get_public_key(self):
