@@ -6,7 +6,7 @@ from umbral.kfrags import KFrag
 from umbral.pre import Capsule, encrypt, generate_kfrags
 from umbral.signing import Signer
 
-from adminvoter import AdminVoter
+from voter import Voter
 from bulletinboard import BulletinBoard
 from config import NUM_OF_VOTER
 from proxy import Proxy
@@ -36,11 +36,11 @@ class Administrator:
     def credential_dispatch(self):
         for voter in self.voters:
             credential = self._generate_credential(voter.short_public_key)
-            (ciphertext, capsule) = self._encrypt_credential_and_voter_short_private_key(
+            ciphertext = self._encrypt_credential_and_voter_short_private_key(
                 credential,
                 voter.short_private_key
             )
-            self.proxy.receive_ciphertext_from_admin((ciphertext, capsule))
+            self.proxy.receive_ciphertext_from_admin(ciphertext)
 
     def _generate_credential(self,
                              voter_short_public_key: UmbralPublicKey
@@ -59,7 +59,7 @@ class Administrator:
     def _encrypt_credential_and_voter_short_private_key(self,
                                                         credential: Tuple[UmbralPublicKey, Signer],
                                                         private_key: UmbralPrivateKey
-                                                        ) -> Tuple[bytes, Capsule]:
+                                                        ) -> Dict[str, Tuple[bytes, Capsule]]:
         """encrypt credential and voter short private key
 
         Arguments:
@@ -67,27 +67,31 @@ class Administrator:
             private_key {UmbralPrivateKey}
 
         Returns:
-            Tuple[bytes, Capsule] -- need to save Capsule
+            Dict[str, Tuple[bytes, Capsule]] -- need to save Capsule
         """
         credential_bytes = credential[0].to_bytes() + bytes(credential[1])
         private_key_bytes = private_key.to_bytes()
-        return encrypt(self.public_key, credential_bytes + private_key_bytes)
+
+        return {
+            "credential": encrypt(self.public_key, credential_bytes),
+            "private_key": encrypt(self.public_key, private_key_bytes)
+        }
 
     def _generate_voters(self):
         for i in range(NUM_OF_VOTER):
             short_private_key = UmbralPrivateKey.gen_key()
             short_public_key = short_private_key.get_pubkey()
-            admin_voter = AdminVoter(short_public_key, short_private_key)
-            self.voters.append(admin_voter)
+            voter = Voter(short_public_key, short_private_key)
+            self.voters.append(voter)
 
     def _generate_re_enc_key_admin_to_voter(self) -> List[Dict[str, KFrag]]:
         """generate re-encrypt key from admin to (admin)voter
 
         Returns:
-            List[Dict[str, KFrag]] -- voter id to re-encrypt
+            List[Dict[int, KFrag]] -- voter id to re-encrypt
         """
         re_enc_keys = []
-        for voter in self.voters:
+        for i, voter in enumerate(self.voters):
             re_enc_key = generate_kfrags(
                 delegating_privkey=self.private_key,
                 signer=self.signer,
@@ -95,6 +99,6 @@ class Administrator:
                 threshold=1,
                 N=1)
             re_enc_keys.append({
-                voter.id: re_enc_key
+                i: re_enc_key
             })
         return re_enc_keys
