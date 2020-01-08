@@ -48,6 +48,10 @@ class Administrator:
         self.bb.append({"hash_algorithm": "SHA256"})
 
     def credential_dispatch(self):
+        if len(self.voters) != NUM_OF_VOTER:
+            raise Exception(
+                "Not matched between num of voters and num of ciphertexts")
+
         for voter in self.voters:
             credential = self._generate_credential(voter.short_public_key)
             ciphertext = self._encrypt_credential_and_voter_short_private_key(
@@ -55,6 +59,7 @@ class Administrator:
                 voter.short_private_key
             )
             self.proxy.receive_ciphertext_from_admin(ciphertext)
+        self.proxy.transfer_ciphertexts_to_voter(self.voters)
 
     def _generate_credential(self,
                              voter_short_public_key: UmbralPublicKey
@@ -86,9 +91,22 @@ class Administrator:
         credential_bytes = credential[0].to_bytes() + bytes(credential[1])
         private_key_bytes = private_key.to_bytes()
 
+        (enc_credential, c_capsule) = encrypt(
+            self.public_key, credential_bytes)
+
+        (enc_private_key, p_capsule) = encrypt(
+            self.public_key, private_key_bytes)
+
+        voter_public_key = credential[0]
+
+        for capsule in (c_capsule, p_capsule):
+            capsule.set_correctness_keys(delegating=self.public_key,
+                                         receiving=voter_public_key,
+                                         verifying=self.verifying_key)
+
         return {
-            "credential": encrypt(self.public_key, credential_bytes),
-            "private_key": encrypt(self.public_key, private_key_bytes)
+            "credential": (enc_credential, c_capsule),
+            "private_key": (enc_private_key, p_capsule)
         }
 
     def _generate_voters(self):
@@ -98,11 +116,11 @@ class Administrator:
             voter = Voter(short_public_key, short_private_key)
             self.voters.append(voter)
 
-    def _generate_re_enc_key_admin_to_voter(self) -> List[Dict[str, KFrag]]:
+    def _generate_re_enc_key_admin_to_voter(self) -> List[KFrag]:
         """generate re-encrypt key from admin to (admin)voter
 
         Returns:
-            List[Dict[int, KFrag]] -- voter id to re-encrypt
+            List[Dict[int, KFrag]] -- index to re-encrypt
         """
         re_enc_keys = []
         for i, voter in enumerate(self.voters):
@@ -112,7 +130,5 @@ class Administrator:
                 receiving_pubkey=voter.short_public_key,
                 threshold=1,
                 N=1)
-            re_enc_keys.append({
-                i: re_enc_key
-            })
+            re_enc_keys.append(re_enc_key)
         return re_enc_keys
