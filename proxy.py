@@ -9,7 +9,6 @@ from bulletinboard import BulletinBoard
 from config import NUM_OF_VOTER
 from voter import Voter
 
-
 class Proxy:
     _unique_instance = None
 
@@ -43,13 +42,18 @@ class Proxy:
         if len(self.ciphertexts) != NUM_OF_VOTER:
             raise Exception(
                 "Not matched between num of voters and num of ciphertexts")
-        shuffled_voters = random.sample(voters, len(voters))
-        re_enc_keys = BulletinBoard.get_instance().find_by_key("admin_re_enc_keys")
 
-        for j, voter in enumerate(shuffled_voters):
+        re_enc_keys = BulletinBoard.get_instance().find_by_key("admin_re_enc_keys")
+        indexes = list(range(0, NUM_OF_VOTER))
+        random_indexes = random.sample(indexes, len(indexes))
+
+        # select c_i and rk_{A->V_l}
+        # i: 0,,NUM_OF_VOTER, l: random in 0,,NUM_OF_VOTER
+        for i, l in enumerate(random_indexes):
             re_enc_ciphertext = self._re_encrypt_ciphertext_from_admin_to_voter(
-                re_enc_key=re_enc_keys[j],
-                ciphertext=self.ciphertexts[j])
+                re_enc_key=re_enc_keys[l],
+                ciphertext=self.ciphertexts[i])
+            voters[l].receive_ciphertext_from_proxy(self.ciphertexts[i])
 
     def _re_encrypt_ciphertext_from_admin_to_voter(self,
                                                    re_enc_key: KFrag,
