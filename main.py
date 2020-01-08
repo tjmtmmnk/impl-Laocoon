@@ -2,7 +2,7 @@ from administrator import Administrator
 from bulletinboard import BulletinBoard
 from candidate import Candidate
 
-admin = Administrator()
+admin = Administrator.get_instance()
 cand1 = Candidate("cand1")
 cand2 = Candidate("cand2")
 

@@ -13,16 +13,30 @@ from proxy import Proxy
 
 
 class Administrator:
-    def __init__(self):
-        set_default_curve()
-        self.bb = BulletinBoard.get_instance()
-        self.proxy = Proxy.get_instance()
-        self.private_key = UmbralPrivateKey.gen_key()
-        self.public_key = self.private_key.get_pubkey()
-        self.singning_key = UmbralPrivateKey.gen_key()
-        self.verifying_key = self.singning_key.get_pubkey()
-        self.signer = Signer(private_key=self.private_key)
-        self.voters = []
+    _unique_instance = None
+
+    def __new__(self):
+        raise NotImplementedError('Cannot initialize via Constructor')
+
+    @classmethod
+    def __internal_new__(self):
+        return super().__new__(self)
+
+    @classmethod
+    def get_instance(self):
+        if not self._unique_instance:
+            set_default_curve()
+            self.bb = BulletinBoard.get_instance()
+            self.proxy = Proxy.get_instance()
+            self.private_key = UmbralPrivateKey.gen_key()
+            self.public_key = self.private_key.get_pubkey()
+            self.singning_key = UmbralPrivateKey.gen_key()
+            self.verifying_key = self.singning_key.get_pubkey()
+            self.signer = Signer(private_key=self.singning_key)
+            self.voters = []
+            self._unique_instance = self.__internal_new__()
+
+        return self._unique_instance
 
     def setup(self, cand_public_keys: UmbralPublicKey):
         self._generate_voters()
